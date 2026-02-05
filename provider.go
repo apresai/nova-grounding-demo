@@ -54,13 +54,29 @@ var Pricing = map[string]struct{ Input, Output float64 }{
 	"grok":   {3.00, 15.00},  // Grok 4
 }
 
-// Cost calculates USD cost from token usage.
-func (r Result) Cost(provider string) float64 {
+// SearchCost per grounded query (USD).
+// These are estimated costs for web search/grounding tools.
+var SearchCost = map[string]float64{
+	"nova":   0.01,  // Estimated - not published by AWS
+	"claude": 0.01,  // $10 per 1,000 searches
+	"gemini": 0.035, // $35 per 1,000 grounded prompts
+	"grok":   0.00,  // Included in token pricing
+}
+
+// TokenCost calculates USD cost from token usage only.
+func (r Result) TokenCost(provider string) float64 {
 	p, ok := Pricing[provider]
 	if !ok {
 		return 0
 	}
 	return (float64(r.Tokens.Input)*p.Input + float64(r.Tokens.Output)*p.Output) / 1_000_000
+}
+
+// EstimatedCost calculates total estimated cost (tokens + search).
+func (r Result) EstimatedCost(provider string) float64 {
+	tokenCost := r.TokenCost(provider)
+	searchCost := SearchCost[provider]
+	return tokenCost + searchCost
 }
 
 // --- Provider Registry ---

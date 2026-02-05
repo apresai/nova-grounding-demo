@@ -62,10 +62,16 @@ func printModelResultWithRank(mr ModelResult, rank int) {
 
 	// Stats line with cost
 	wordCount := len(strings.Fields(r.Text))
-	cost := r.Cost(p.Name())
 	fmt.Printf("│ 📊 %d words | %d citations | score: %d\n", wordCount, len(r.Citations), mr.Score)
 	if r.Tokens.Input > 0 || r.Tokens.Output > 0 {
-		fmt.Printf("│ 💰 $%.4f (%d in / %d out tokens)\n", cost, r.Tokens.Input, r.Tokens.Output)
+		tokenCost := r.TokenCost(p.Name())
+		searchCost := SearchCost[p.Name()]
+		estTotal := r.EstimatedCost(p.Name())
+		if searchCost > 0 {
+			fmt.Printf("│ 💰 ~$%.4f est. (tokens: $%.4f + search: ~$%.4f)\n", estTotal, tokenCost, searchCost)
+		} else {
+			fmt.Printf("│ 💰 $%.4f (%d in / %d out tokens)\n", tokenCost, r.Tokens.Input, r.Tokens.Output)
+		}
 	}
 	fmt.Println("│")
 
@@ -102,7 +108,7 @@ func printComparisonSummary(results []ModelResult) {
 	fmt.Println("║                        RANKING & PERFORMANCE                         ║")
 	fmt.Println("╠══════════════════════════════════════════════════════════════════════╣")
 
-	var totalCost float64
+	var totalEstCost float64
 	for i, mr := range results {
 		p := mr.Provider
 		r := mr.Result
@@ -116,15 +122,15 @@ func printComparisonSummary(results []ModelResult) {
 		medal := medals[min(i, 3)]
 
 		wordCount := len(strings.Fields(r.Text))
-		cost := r.Cost(p.Name())
-		totalCost += cost
+		estCost := r.EstimatedCost(p.Name())
+		totalEstCost += estCost
 
-		fmt.Printf("║ %s %s %-22s %s │ %4d words │ %2d cites │ $%.4f   ║\n",
-			medal, p.Emoji(), p.DisplayName(), status, wordCount, len(r.Citations), cost)
+		fmt.Printf("║ %s %s %-22s %s │ %4d words │ %2d cites │ ~$%.4f  ║\n",
+			medal, p.Emoji(), p.DisplayName(), status, wordCount, len(r.Citations), estCost)
 	}
 
 	fmt.Println("╠══════════════════════════════════════════════════════════════════════╣")
-	fmt.Printf("║ 💰 TOTAL COST: $%.4f                                                ║\n", totalCost)
+	fmt.Printf("║ 💰 TOTAL EST. COST: ~$%.4f                                           ║\n", totalEstCost)
 
 	// Find winner
 	if len(results) > 0 && results[0].Result.Error == nil {
@@ -132,6 +138,8 @@ func printComparisonSummary(results []ModelResult) {
 		fmt.Printf("║ 🏆 WINNER: %-58s ║\n", winner)
 	}
 
+	fmt.Println("╠══════════════════════════════════════════════════════════════════════╣")
+	fmt.Println("║ ⚠️  Costs are estimates. Search/grounding fees vary by provider.     ║")
 	fmt.Println("╚══════════════════════════════════════════════════════════════════════╝")
 	fmt.Println()
 }

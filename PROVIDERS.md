@@ -72,7 +72,7 @@ func (p *OpenAIProvider) Query(ctx context.Context, query string, verbose bool) 
 
 ### 2. Add Pricing
 
-In `provider.go`, add your provider's pricing (per million tokens):
+In `provider.go`, add your provider's token pricing (per million tokens):
 
 ```go
 var Pricing = map[string]struct{ Input, Output float64 }{
@@ -83,6 +83,20 @@ var Pricing = map[string]struct{ Input, Output float64 }{
     "openai":  {2.50, 10.00},  // Add your provider here
 }
 ```
+
+Also add the search/grounding cost per query (USD):
+
+```go
+var SearchCost = map[string]float64{
+    "nova":    0.01,   // Estimated - not published
+    "claude":  0.01,   // $10 per 1,000 searches
+    "gemini":  0.035,  // $35 per 1,000 grounded prompts
+    "grok":    0.00,   // Included in token pricing
+    "openai":  0.00,   // Add your provider here (0 if included in tokens)
+}
+```
+
+**Note:** Search costs are separate from token costs. Check your provider's documentation for exact pricing.
 
 ### 3. Build and Test
 
