@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"sort"
 	"strings"
 	"sync"
 )
@@ -122,7 +121,6 @@ func runAllModels(ctx context.Context, query string) {
 			results <- ModelResult{
 				Provider: provider,
 				Result:   r,
-				Score:    calculateScore(r),
 			}
 		}(p)
 	}
@@ -138,10 +136,13 @@ func runAllModels(ctx context.Context, query string) {
 		modelResults = append(modelResults, mr)
 	}
 
-	// Sort by score (highest first)
-	sort.Slice(modelResults, func(i, j int) bool {
-		return modelResults[i].Score > modelResults[j].Score
-	})
+	// Judge phase: validate links + LLM evaluation
+	fmt.Println()
+	fmt.Println("⚖️  Judging results...")
+	modelResults, err := Judge(ctx, modelResults, query, verbose)
+	if err != nil {
+		fmt.Printf("⚠️  Judge error: %v (showing results unranked)\n", err)
+	}
 
 	// Print each response
 	for i, mr := range modelResults {
@@ -174,7 +175,16 @@ func runSingleModel(ctx context.Context, modelName, query string) {
 	mr := ModelResult{
 		Provider: p,
 		Result:   r,
-		Score:    calculateScore(r),
 	}
-	printModelResult(mr)
+
+	// Judge even single model results
+	fmt.Println()
+	fmt.Println("⚖️  Judging results...")
+	judged, err := Judge(ctx, []ModelResult{mr}, query, verbose)
+	if err != nil {
+		fmt.Printf("⚠️  Judge error: %v\n", err)
+		printModelResult(mr)
+	} else {
+		printModelResult(judged[0])
+	}
 }

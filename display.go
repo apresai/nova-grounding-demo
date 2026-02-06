@@ -9,9 +9,9 @@ import (
 
 // ModelResult wraps Result with provider info for display.
 type ModelResult struct {
-	Provider Provider
-	Result   Result
-	Score    int
+	Provider   Provider
+	Result     Result
+	JudgeScore *JudgeScore
 }
 
 func printHeader() {
@@ -60,9 +60,22 @@ func printModelResultWithRank(mr ModelResult, rank int) {
 		return
 	}
 
-	// Stats line with cost
+	// Stats line with judge score
 	wordCount := len(strings.Fields(r.Text))
-	fmt.Printf("│ 📊 %d words | %d citations | score: %d\n", wordCount, len(r.Citations), mr.Score)
+	if mr.JudgeScore != nil {
+		fmt.Printf("│ 📊 %d words | %d citations | judge: %.1f/10\n", wordCount, len(r.Citations), mr.JudgeScore.Overall)
+		fmt.Printf("│ 🏛️  Quality: %d | Links: %d | Recency: %d | Significance: %d | Impact: %d\n",
+			mr.JudgeScore.Quality, mr.JudgeScore.LinkHealth, mr.JudgeScore.Recency, mr.JudgeScore.Significance, mr.JudgeScore.Impact)
+		if mr.JudgeScore.Reasoning != "" {
+			reasoning := mr.JudgeScore.Reasoning
+			if len(reasoning) > 120 {
+				reasoning = reasoning[:117] + "..."
+			}
+			fmt.Printf("│ 💬 %q\n", reasoning)
+		}
+	} else {
+		fmt.Printf("│ 📊 %d words | %d citations\n", wordCount, len(r.Citations))
+	}
 	if r.Tokens.Input > 0 || r.Tokens.Output > 0 {
 		tokenCost := r.TokenCost(p.Name())
 		searchCost := SearchCost[p.Name()]
@@ -125,8 +138,12 @@ func printComparisonSummary(results []ModelResult) {
 		estCost := r.EstimatedCost(p.Name())
 		totalEstCost += estCost
 
-		fmt.Printf("║ %s %s %-22s %s │ %4d words │ %2d cites │ ~$%.4f  ║\n",
-			medal, p.Emoji(), p.DisplayName(), status, wordCount, len(r.Citations), estCost)
+		judgeStr := "  n/a"
+		if mr.JudgeScore != nil {
+			judgeStr = fmt.Sprintf("%4.1f", mr.JudgeScore.Overall)
+		}
+		fmt.Printf("║ %s %s %-22s %s │ %4d words │ %2d cites │ %s │ ~$%.4f ║\n",
+			medal, p.Emoji(), p.DisplayName(), status, wordCount, len(r.Citations), judgeStr, estCost)
 	}
 
 	fmt.Println("╠══════════════════════════════════════════════════════════════════════╣")
@@ -252,12 +269,3 @@ func stripThinkingTags(text string) string {
 	return strings.TrimSpace(re.ReplaceAllString(text, ""))
 }
 
-func calculateScore(r Result) int {
-	if r.Error != nil {
-		return 0
-	}
-	wordCount := len(strings.Fields(r.Text))
-	citationScore := len(r.Citations) * 10
-	wordScore := min(wordCount/10, 50)
-	return citationScore + wordScore
-}

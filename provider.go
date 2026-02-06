@@ -104,6 +104,17 @@ func All() []string {
 	return names
 }
 
+// JudgeScore holds LLM judge evaluation scores (each 1-10).
+type JudgeScore struct {
+	Quality      int     // Content coherence, depth, accuracy
+	LinkHealth   int     // Based on HTTP HEAD validation (% of working links)
+	Recency      int     // How current/recent the cited sources are
+	Significance int     // Newsworthy? WSJ front-page worthy?
+	Impact       int     // Business or topic impact
+	Overall      float64 // Weighted composite score
+	Reasoning    string  // Brief judge explanation
+}
+
 // --- Shared Helpers ---
 
 // DeduplicateCitations adds a citation if the URL hasn't been seen.
